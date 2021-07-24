@@ -1,8 +1,8 @@
-resource "aws_instance" "example" {
-  ami = "ami-0c3fd0f5d33134a76"
+module "web_server" {
+  source = "./http_server"
   instance_type = "t3.micro"
+}
 
-  tags = {
-    Name = "example"
-  }
+output "public_dns" {
+  value = module.web_server.public_dns
 }
