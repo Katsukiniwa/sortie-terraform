@@ -1,5 +1,5 @@
 // VPC
-resource "aws_vpc" "express-ecs-staging-vpc" {
+resource "aws_vpc" "vpc" {
   cidr_block = "10.5.0.0/16"
   enable_dns_support = true
   enable_dns_hostnames = true
@@ -10,8 +10,8 @@ resource "aws_vpc" "express-ecs-staging-vpc" {
 }
 
 // Public Subnet
-resource "aws_subnet" "express-ecs-staging-public-subnet" {
-  vpc_id = aws_vpc.express-ecs-staging-vpc.id
+resource "aws_subnet" "public-subnet" {
+  vpc_id = aws_vpc.vpc.id
   cidr_block = "10.5.0.0/24"
   map_public_ip_on_launch = true
   availability_zone = "ap-northeast-1a"
@@ -21,33 +21,62 @@ resource "aws_subnet" "express-ecs-staging-public-subnet" {
   }
 }
 
+// Private Subnet
+resource "aws_subnet" "private-subnet" {
+  vpc_id = aws_vpc.vpc.id
+  cidr_block = "10.5.64.0/24"
+  availability_zone = "ap-northeast-1a"
+  map_public_ip_on_launch = false
+}
+
+// Elastic IP
+resource "aws_eip" "nat-gateway" {
+  vpc = true
+  depends_on = [aws_internet_gateway.igw]
+}
+
 // Internet Gateway
-resource "aws_internet_gateway" "express-ecs-staging-igw" {
-  vpc_id = aws_vpc.express-ecs-staging-vpc.id
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.vpc.id
 
   tags = {
     Name = "express-ecs-staging-igw"
   }
 }
 
-// Route Table
-resource "aws_route_table" "express-ecs-staging-public-route-table" {
-  vpc_id = aws_vpc.express-ecs-staging-vpc.id
+// Public Route Table
+resource "aws_route_table" "public-route-table" {
+  vpc_id = aws_vpc.vpc.id
 
   tags = {
     Name = "express-ecs-staging-public-route-table"
   }
 }
 
+// Private Route Table
+resource "aws_route_table" "private-route-table" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "express-ecs-staging-private-route-table"
+  }
+}
+
 // Route
-resource "aws_route" "express-ecs-staging-route" {
-  route_table_id = aws_route_table.express-ecs-staging-public-route-table.id
-  gateway_id = aws_internet_gateway.express-ecs-staging-igw.id
+resource "aws_route" "public-route" {
+  route_table_id = aws_route_table.public-route-table.id
+  gateway_id = aws_internet_gateway.igw.id
   destination_cidr_block = "0.0.0.0/0"
 }
 
-// Association between public subnet and route table
-resource "aws_route_table_association" "express-ecs-staging-association" {
-  subnet_id = aws_subnet.express-ecs-staging-public-subnet.id
-  route_table_id = aws_route_table.express-ecs-staging-public-route-table.id
+// Association between public subnet and public route table
+resource "aws_route_table_association" "public" {
+  subnet_id = aws_subnet.public-subnet.id
+  route_table_id = aws_route_table.public-route-table.id
+}
+
+// Association between private subnet and private route table
+resource "aws_route_table_association" "private" {
+  subnet_id = aws_subnet.private-subnet.id
+  route_table_id = aws_route_table.private-route-table.id
 }
