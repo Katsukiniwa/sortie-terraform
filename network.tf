@@ -158,3 +158,27 @@ resource "aws_route_table_association" "private_1" {
   subnet_id = aws_subnet.private_1.id
   route_table_id = aws_route_table.private_1.id
 }
+
+// Security Group
+resource "aws_security_group" "security_group" {
+  name = "express-ecs-staging-sg"
+  vpc_id = aws_vpc.vpc.id
+}
+
+resource "aws_security_group_rule" "ingress" {
+  type = "ingress"
+  from_port = "80"
+  to_port = "80"
+  protocol = "tcp"
+  cidr_blocks = [ "0.0.0.0/0" ]
+  security_group_id = aws_security_group.security_group.id
+}
+
+resource "aws_security_group_rule" "egress" {
+  type = "egress"
+  from_port = 0
+  to_port = 0
+  protocol = "tcp"
+  cidr_blocks = [ "0.0.0.0/0" ]
+  security_group_id = aws_security_group.security_group.id
+}
