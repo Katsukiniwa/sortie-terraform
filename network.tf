@@ -27,11 +27,22 @@ resource "aws_subnet" "private-subnet" {
   cidr_block = "10.5.64.0/24"
   availability_zone = "ap-northeast-1a"
   map_public_ip_on_launch = false
+
+  tags = {
+    Name = "express-ecs-staging-private-subnet-a"
+  }
 }
 
 // Elastic IP
 resource "aws_eip" "nat-gateway" {
   vpc = true
+  depends_on = [aws_internet_gateway.igw]
+}
+
+// NAT Gateway
+resource "aws_nat_gateway" "nat-gateway" {
+  allocation_id = aws_eip.nat-gateway.id
+  subnet_id = aws_subnet.public-subnet.id
   depends_on = [aws_internet_gateway.igw]
 }
 
@@ -45,7 +56,7 @@ resource "aws_internet_gateway" "igw" {
 }
 
 // Public Route Table
-resource "aws_route_table" "public-route-table" {
+resource "aws_route_table" "public" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
@@ -54,7 +65,7 @@ resource "aws_route_table" "public-route-table" {
 }
 
 // Private Route Table
-resource "aws_route_table" "private-route-table" {
+resource "aws_route_table" "private" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
@@ -62,21 +73,28 @@ resource "aws_route_table" "private-route-table" {
   }
 }
 
-// Route
+// Public Route
 resource "aws_route" "public-route" {
-  route_table_id = aws_route_table.public-route-table.id
+  route_table_id = aws_route_table.public.id
   gateway_id = aws_internet_gateway.igw.id
+  destination_cidr_block = "0.0.0.0/0"
+}
+
+// Private Route
+resource "aws_route" "private-route" {
+  route_table_id = aws_route_table.private.id
+  nat_gateway_id = aws_nat_gateway.nat-gateway.id
   destination_cidr_block = "0.0.0.0/0"
 }
 
 // Association between public subnet and public route table
 resource "aws_route_table_association" "public" {
   subnet_id = aws_subnet.public-subnet.id
-  route_table_id = aws_route_table.public-route-table.id
+  route_table_id = aws_route_table.public.id
 }
 
 // Association between private subnet and private route table
 resource "aws_route_table_association" "private" {
   subnet_id = aws_subnet.private-subnet.id
-  route_table_id = aws_route_table.private-route-table.id
+  route_table_id = aws_route_table.private.id
 }
