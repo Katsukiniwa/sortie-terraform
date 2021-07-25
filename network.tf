@@ -9,40 +9,75 @@ resource "aws_vpc" "vpc" {
   }
 }
 
-// Public Subnet
-resource "aws_subnet" "public-subnet" {
+// Public Subnet A
+resource "aws_subnet" "public-a" {
   vpc_id = aws_vpc.vpc.id
-  cidr_block = "10.5.0.0/24"
+  cidr_block = "10.5.1.0/24"
   map_public_ip_on_launch = true
   availability_zone = "ap-northeast-1a"
 
   tags = {
-    Name = "express-ecs-staging-public-subnet-a"
+    Name = "express-ecs-staging-public-a"
   }
 }
 
-// Private Subnet
-resource "aws_subnet" "private-subnet" {
+// Public Subnet C
+resource "aws_subnet" "public_c" {
   vpc_id = aws_vpc.vpc.id
-  cidr_block = "10.5.64.0/24"
+  cidr_block = "10.5.2.0/24"
+  map_public_ip_on_launch = true
+  availability_zone = "ap-northeast-1c"
+
+  tags = {
+    Name = "express-ecs-staging-public-c"
+  }
+}
+
+// Private Subnet a
+resource "aws_subnet" "private_0" {
+  vpc_id = aws_vpc.vpc.id
+  cidr_block = "10.5.68.0/24"
   availability_zone = "ap-northeast-1a"
   map_public_ip_on_launch = false
 
   tags = {
-    Name = "express-ecs-staging-private-subnet-a"
+    Name = "express-ecs-staging-private-a"
+  }
+}
+
+// Private Subnet c
+resource "aws_subnet" "private_1" {
+  vpc_id = aws_vpc.vpc.id
+  cidr_block = "10.5.69.0/24"
+  availability_zone = "ap-northeast-1c"
+  map_public_ip_on_launch = false
+
+  tags = {
+    Name = "express-ecs-staging-private-c"
   }
 }
 
 // Elastic IP
-resource "aws_eip" "nat-gateway" {
+resource "aws_eip" "nat_gateway_0" {
+  vpc = true
+  depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_eip" "nat_gateway_1" {
   vpc = true
   depends_on = [aws_internet_gateway.igw]
 }
 
 // NAT Gateway
-resource "aws_nat_gateway" "nat-gateway" {
-  allocation_id = aws_eip.nat-gateway.id
-  subnet_id = aws_subnet.public-subnet.id
+resource "aws_nat_gateway" "nat_gateway_0" {
+  allocation_id = aws_eip.nat_gateway_0.id
+  subnet_id = aws_subnet.public-a.id
+  depends_on = [aws_internet_gateway.igw]
+}
+
+resource "aws_nat_gateway" "nat_gateway_1" {
+  allocation_id = aws_eip.nat_gateway_1.id
+  subnet_id = aws_subnet.public_c.id
   depends_on = [aws_internet_gateway.igw]
 }
 
@@ -65,36 +100,61 @@ resource "aws_route_table" "public" {
 }
 
 // Private Route Table
-resource "aws_route_table" "private" {
+resource "aws_route_table" "private_0" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name = "express-ecs-staging-private-route-table"
+    Name = "express-ecs-staging-private-route-table-a"
+  }
+}
+
+resource "aws_route_table" "private_1" {
+  vpc_id = aws_vpc.vpc.id
+
+  tags = {
+    Name = "express-ecs-staging-private-route-table-c"
   }
 }
 
 // Public Route
-resource "aws_route" "public-route" {
+resource "aws_route" "public_route" {
   route_table_id = aws_route_table.public.id
   gateway_id = aws_internet_gateway.igw.id
   destination_cidr_block = "0.0.0.0/0"
 }
 
 // Private Route
-resource "aws_route" "private-route" {
-  route_table_id = aws_route_table.private.id
-  nat_gateway_id = aws_nat_gateway.nat-gateway.id
+resource "aws_route" "private_route_0" {
+  route_table_id = aws_route_table.private_0.id
+  nat_gateway_id = aws_nat_gateway.nat_gateway_0.id
   destination_cidr_block = "0.0.0.0/0"
 }
 
-// Association between public subnet and public route table
-resource "aws_route_table_association" "public" {
-  subnet_id = aws_subnet.public-subnet.id
+resource "aws_route" "private_route_1" {
+  route_table_id = aws_route_table.private_1.id
+  nat_gateway_id = aws_nat_gateway.nat_gateway_1.id
+  destination_cidr_block = "0.0.0.0/0"
+}
+
+// Association between public subnet a and public route table
+resource "aws_route_table_association" "public-a" {
+  subnet_id = aws_subnet.public-a.id
+  route_table_id = aws_route_table.public.id
+}
+
+// Association between public subnet c and public route table
+resource "aws_route_table_association" "public-c" {
+  subnet_id = aws_subnet.public_c.id
   route_table_id = aws_route_table.public.id
 }
 
 // Association between private subnet and private route table
-resource "aws_route_table_association" "private" {
-  subnet_id = aws_subnet.private-subnet.id
-  route_table_id = aws_route_table.private.id
+resource "aws_route_table_association" "private_0" {
+  subnet_id = aws_subnet.private_0.id
+  route_table_id = aws_route_table.private_0.id
+}
+
+resource "aws_route_table_association" "private_1" {
+  subnet_id = aws_subnet.private_1.id
+  route_table_id = aws_route_table.private_1.id
 }
